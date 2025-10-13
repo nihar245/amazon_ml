@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Dataset files (too large for GitHub)
+student_resource/dataset/*.csv
+*.csv
+
+# Model files (too large for GitHub)
+models/
+*.pth
+*.pkl
+*.h5
+*.pb
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.log
+*.tmp
+__MACOSX/
+
+# Keep directory structure
+!.gitkeep
