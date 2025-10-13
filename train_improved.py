@@ -388,6 +388,14 @@ def train_model_improved(model, train_loader, val_loader, epochs=20, lr=1e-4,
     best_val_smape = float('inf')
     start_epoch = 0
     
+    # Print optimization settings
+    print("\n🚀 SPEED OPTIMIZATIONS:")
+    print(f"  - Gradient accumulation: {gradient_accumulation_steps}x (effective batch size: {train_loader.batch_size * gradient_accumulation_steps})")
+    print(f"  - Mixed precision: Enabled")
+    print(f"  - Epochs: {epochs} (starting from {start_epoch+1})")
+    print(f"  - Checkpoint saving: Every epoch")
+    print(f"  - Expected time per epoch: 15-20 minutes")
+    
     # Resume from checkpoint if specified
     if resume_from and os.path.exists(resume_from):
         print(f"\n📂 Resuming from checkpoint: {resume_from}")
@@ -533,27 +541,27 @@ if __name__ == "__main__":
         max_length=384, is_train=True
     )
     
-    # Optimized dataloaders with multi-worker prefetching
-    num_workers = 2 if torch.cuda.is_available() else 0
+    # Optimized dataloaders with multi-worker prefetching (P100 optimized)
+    num_workers = 4 if torch.cuda.is_available() else 0  # Increased from 2
     train_loader = DataLoader(
         train_dataset, 
-        batch_size=8,  # Actual batch size (effective: 32 with grad accumulation)
+        batch_size=16,  # Increased from 8 (P100 can handle this)
         shuffle=True, 
         num_workers=num_workers,
         pin_memory=True,
-        prefetch_factor=2 if num_workers > 0 else None,
+        prefetch_factor=3 if num_workers > 0 else None,  # Increased prefetch
         persistent_workers=True if num_workers > 0 else False
     )
     val_loader = DataLoader(
         val_dataset, 
-        batch_size=16,  # Larger for validation (no gradients)
+        batch_size=32,  # Increased from 16 (no gradients = more memory)
         shuffle=False, 
         num_workers=num_workers,
         pin_memory=True,
-        prefetch_factor=2 if num_workers > 0 else None,
+        prefetch_factor=3 if num_workers > 0 else None,  # Increased prefetch
         persistent_workers=True if num_workers > 0 else False
     )
-    print(f"✓ Dataloaders optimized (num_workers={num_workers}, pin_memory=True)")
+    print(f"✓ Dataloaders optimized for P100 (batch={16}/{32}, workers={num_workers})")
     
     print("\nFitting feature scaler...")
     all_numeric_features = []
@@ -633,9 +641,9 @@ if __name__ == "__main__":
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
-        epochs=20,  # Reduced from 35 (still achieves good results)
+        epochs=15,  # Reduced from 20 for faster iteration
         lr=1e-4,
-        gradient_accumulation_steps=4  # Effective batch size: 32
+        gradient_accumulation_steps=2  # Reduced from 4 (effective batch size: 32)
     )
     
     print("\n" + "="*70)
