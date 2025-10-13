@@ -301,10 +301,10 @@ def train_optimized(model, train_loader, val_loader, epochs=25, lr=3e-5, grad_ac
     print(f"\n⚡ OPTIMIZED MODEL CONFIG:")
     print(f"  - Model: DeBERTa-v3-small (44M params, 3x faster than base)")
     print(f"  - Features: 22 (highly predictive)")
-    print(f"  - Sequence length: 256 (optimized)")
+    print(f"  - Sequence length: 128 (3x speed boost)")
     print(f"  - Batch: 16 x {grad_accum} = {16*grad_accum} effective")
     print(f"  - Epochs: {epochs} (starting from {start_epoch + 1})")
-    print(f"  - Checkpoint saving: Every epoch")
+    print(f"  - Checkpoint saving: Only best model (saves disk space)")
     print(f"  - Learning rate: {lr} (fine-tuned)")
     print(f"  - Custom loss: Focal SMAPE (focus on hard examples)")
     print(f"  - Expected: SMAPE 30-40% in 3-4 hours (P100)\n")
@@ -357,7 +357,7 @@ def train_optimized(model, train_loader, val_loader, epochs=25, lr=3e-5, grad_ac
         val_smape = smape_metric(np.array(val_targets), np.array(val_predictions))
         print(f'Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f} - Val SMAPE: {val_smape:.2f}%')
         
-        # Save checkpoint every epoch
+        # Save checkpoint data
         checkpoint = {
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -369,18 +369,25 @@ def train_optimized(model, train_loader, val_loader, epochs=25, lr=3e-5, grad_ac
             'best_val_smape': best_val_smape
         }
         
-        # Save latest checkpoint (overwrites each epoch)
+        # Save only latest checkpoint (overwrites each epoch - saves disk space)
         torch.save(checkpoint, 'models/checkpoint_optimized_latest.pth', _use_new_zipfile_serialization=False)
         
-        # Save epoch-specific checkpoint
-        torch.save(checkpoint, f'models/checkpoint_optimized_epoch_{epoch+1}.pth', _use_new_zipfile_serialization=False)
-        print(f'💾 Checkpoint saved: epoch {epoch+1}')
-        
-        # Save best model
+        # Save best model and delete old checkpoints to save disk space
         if val_smape < best_val_smape:
             best_val_smape = val_smape
             torch.save(checkpoint, 'models/best_model_optimized.pth', _use_new_zipfile_serialization=False)
             print(f'⭐ Best model saved with Val SMAPE: {val_smape:.2f}%')
+            
+            # Clean up old epoch-specific checkpoints to save space
+            import glob
+            old_checkpoints = glob.glob('models/checkpoint_optimized_epoch_*.pth')
+            for old_cp in old_checkpoints:
+                try:
+                    os.remove(old_cp)
+                except:
+                    pass
+        else:
+            print(f'💾 Checkpoint saved (latest only)')
     
     return model
 
@@ -392,7 +399,16 @@ def main():
     print("DeBERTa-v3-small: 44M params, targeting SMAPE 30-40%")
     print("="*70)
     
-    # Tokenizer
+    # Check disk space
+    import shutil
+    total, used, free = shutil.disk_usage('.')
+    free_gb = free / (1024**3)
+    print(f"\n💾 Disk Space: {free_gb:.1f} GB available")
+    if free_gb < 5:
+        print("⚠️  WARNING: Low disk space! Training may fail.")
+        print("   Recommendation: Only best model will be saved to save space.")
+    
+    # Load tokenizer
     print("\nLoading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained('microsoft/deberta-v3-small')
     
@@ -417,14 +433,25 @@ def main():
     
     print(f"Brands: {len(brand_enc.classes_)}, Categories: {len(category_enc.classes_)}, Units: {len(unit_enc.classes_)}")
     
-    # Datasets
+    # Datasets (optimized for speed)
     print("\nCreating datasets...")
-    train_dataset = OptimizedDataset(train_data, tokenizer, brand_enc, category_enc, unit_enc, 256, True)
-    val_dataset = OptimizedDataset(val_data, tokenizer, brand_enc, category_enc, unit_enc, 256, True)
+    train_dataset = OptimizedDataset(train_data, tokenizer, brand_enc, category_enc, unit_enc, 128, True)  # Reduced from 256
+    val_dataset = OptimizedDataset(val_data, tokenizer, brand_enc, category_enc, unit_enc, 128, True)  # Reduced from 256
     
-    # Dataloaders (aggressive batch size for speed)
-    train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=0, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=0, pin_memory=True)
+    # Dataloaders (optimized for P100)
+    num_workers = 4 if torch.cuda.is_available() else 0
+    train_loader = DataLoader(
+        train_dataset, batch_size=16, shuffle=True, 
+        num_workers=num_workers, pin_memory=True,
+        prefetch_factor=3 if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=32, shuffle=False, 
+        num_workers=num_workers, pin_memory=True,
+        prefetch_factor=3 if num_workers > 0 else None,
+        persistent_workers=True if num_workers > 0 else False
+    )
     
     # Fit scaler
     print("\nFitting scaler...")
