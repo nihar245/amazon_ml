@@ -534,11 +534,11 @@ if __name__ == "__main__":
     print("\nCreating datasets...")
     train_dataset = ProductDataset(
         train_data, tokenizer, brand_encoder, category_encoder, 
-        max_length=384, is_train=True
+        max_length=128, is_train=True  # Reduced from 384 for 3x speed boost
     )
     val_dataset = ProductDataset(
         val_data, tokenizer, brand_encoder, category_encoder,
-        max_length=384, is_train=True
+        max_length=128, is_train=True  # Reduced from 384 for 3x speed boost
     )
     
     # Optimized dataloaders with multi-worker prefetching (P100 optimized)
