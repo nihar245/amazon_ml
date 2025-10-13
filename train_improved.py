@@ -393,7 +393,7 @@ def train_model_improved(model, train_loader, val_loader, epochs=20, lr=1e-4,
     print(f"  - Gradient accumulation: {gradient_accumulation_steps}x (effective batch size: {train_loader.batch_size * gradient_accumulation_steps})")
     print(f"  - Mixed precision: Enabled")
     print(f"  - Epochs: {epochs} (starting from {start_epoch+1})")
-    print(f"  - Checkpoint saving: Every epoch")
+    print(f"  - Checkpoint saving: Only best model (saves disk space)")
     print(f"  - Expected time per epoch: 15-20 minutes")
     
     # Resume from checkpoint if specified
@@ -407,13 +407,6 @@ def train_model_improved(model, train_loader, val_loader, epochs=20, lr=1e-4,
         start_epoch = checkpoint['epoch'] + 1
         best_val_smape = checkpoint.get('best_val_smape', float('inf'))
         print(f"✓ Resumed from epoch {start_epoch}, best SMAPE: {best_val_smape:.2f}%\n")
-    
-    print(f"\n🚀 SPEED OPTIMIZATIONS:")
-    print(f"  - Gradient accumulation: {gradient_accumulation_steps}x (effective batch size: {8 * gradient_accumulation_steps})")
-    print(f"  - Mixed precision: Enabled")
-    print(f"  - Epochs: {epochs} (starting from {start_epoch + 1})")
-    print(f"  - Checkpoint saving: Every epoch")
-    print(f"  - Expected time per epoch: 15-20 minutes\n")
     
     for epoch in range(start_epoch, epochs):
         model.train()
@@ -464,7 +457,7 @@ def train_model_improved(model, train_loader, val_loader, epochs=20, lr=1e-4,
         val_smape = smape_metric(np.array(val_targets), np.array(val_predictions))
         print(f'Epoch {epoch+1}/{epochs} - Train Loss: {avg_train_loss:.4f} - Val SMAPE: {val_smape:.2f}%')
         
-        # Save checkpoint every epoch
+        # Save checkpoint data
         checkpoint = {
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -476,18 +469,25 @@ def train_model_improved(model, train_loader, val_loader, epochs=20, lr=1e-4,
             'best_val_smape': best_val_smape
         }
         
-        # Save latest checkpoint (overwrites each epoch)
+        # Save only the latest checkpoint (overwrites each epoch - saves space)
         torch.save(checkpoint, 'models/checkpoint_ultra_latest.pth')
         
-        # Save epoch-specific checkpoint
-        torch.save(checkpoint, f'models/checkpoint_ultra_epoch_{epoch+1}.pth')
-        print(f'💾 Checkpoint saved: epoch {epoch+1}')
-        
-        # Save best model
+        # Save best model and delete old epoch checkpoints to save disk space
         if val_smape < best_val_smape:
             best_val_smape = val_smape
             torch.save(checkpoint, 'models/best_model_ultra.pth')
             print(f'⭐ Best model saved with Val SMAPE: {val_smape:.2f}%')
+            
+            # Clean up old epoch-specific checkpoints to save space
+            import glob
+            old_checkpoints = glob.glob('models/checkpoint_ultra_epoch_*.pth')
+            for old_cp in old_checkpoints:
+                try:
+                    os.remove(old_cp)
+                except:
+                    pass
+        else:
+            print(f'💾 Checkpoint saved (latest only)')
     
     return model
 
@@ -500,6 +500,15 @@ if __name__ == "__main__":
     print("DeBERTa-v3-base with 25 Engineered Features")
     print("="*60)
     print(f"Using device: {device}")
+    
+    # Check disk space
+    import shutil
+    total, used, free = shutil.disk_usage('.')
+    free_gb = free / (1024**3)
+    print(f"\n💾 Disk Space: {free_gb:.1f} GB available")
+    if free_gb < 5:
+        print("⚠️  WARNING: Low disk space! Training may fail.")
+        print("   Recommendation: Only best model will be saved to save space.")
     
     # Initialize tokenizer
     print("\nLoading DeBERTa-v3-base tokenizer...")
