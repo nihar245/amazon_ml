@@ -651,7 +651,7 @@ if __name__ == "__main__":
         train_loader=train_loader,
         val_loader=val_loader,
         epochs=18,  # Optimized for better convergence
-        lr=3e-10,  # Very low learning rate for fine-tuning
+        lr=3e-4,  # Increased learning rate for better SMAPE
         gradient_accumulation_steps=2  # Reduced from 4 (effective batch size: 32)
     )
     
