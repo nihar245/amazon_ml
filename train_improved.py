@@ -650,8 +650,8 @@ if __name__ == "__main__":
         model=model,
         train_loader=train_loader,
         val_loader=val_loader,
-        epochs=15,  # Reduced from 20 for faster iteration
-        lr=1e-4,
+        epochs=18,  # Optimized for better convergence
+        lr=3e-10,  # Very low learning rate for fine-tuning
         gradient_accumulation_steps=2  # Reduced from 4 (effective batch size: 32)
     )
     
