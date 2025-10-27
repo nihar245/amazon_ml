@@ -585,13 +585,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Contact & Support
-
-- **GitHub Issues:** [Create an issue](https://github.com/meethp1884/amazon_ai_chall_1/issues)
-- **Repository:** https://github.com/meethp1884/amazon_ai_chall_1
-
----
-
 ## 📈 Roadmap
 
 ### Version 1.0 (Current)
@@ -636,10 +629,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 📊 [Data Flow Diagram](DATA_FLOW.md)
 - 🏗️ [Architecture Details](PROJECT_SUMMARY.md)
 - 🚀 [Deployment Guide](DEPLOYMENT_GUIDE.md)
-- 🐙 [GitHub Repository](https://github.com/meethp1884/amazon_ai_chall_1)
 
 ---
 
 **Built with ❤️ for Amazon ML Challenge 2025**
 
 *Last Updated: October 11, 2025*
+
